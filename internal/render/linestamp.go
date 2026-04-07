@@ -151,37 +151,67 @@ func (s *lineStamper) renderThematicBreak(w util.BufWriter, source []byte, n ast
 }
 
 // lineRange returns the 1-based [start, end] source line range for any block
-// node by inspecting its first/last segment positions.
+// node by inspecting its first/last segment positions. Container blocks like
+// list and blockquote have no direct segments, so we descend into block-typed
+// children only — calling Lines() on inline nodes panics in goldmark.
 func lineRange(source []byte, n ast.Node) (int, int) {
+	if n.Type() != ast.TypeBlock {
+		return 1, 1
+	}
 	lines := n.Lines()
-	if lines.Len() == 0 {
-		// Containers like list / blockquote may have no direct text segments;
-		// recurse into children for an outer envelope.
-		var first, last text.Segment
-		gotFirst := false
-		ast.Walk(n, func(c ast.Node, entering bool) (ast.WalkStatus, error) {
-			if !entering || c == n {
-				return ast.WalkContinue, nil
-			}
-			cl := c.Lines()
-			if cl.Len() == 0 {
-				return ast.WalkContinue, nil
-			}
-			if !gotFirst {
-				first = cl.At(0)
-				gotFirst = true
-			}
-			last = cl.At(cl.Len() - 1)
-			return ast.WalkContinue, nil
-		})
-		if !gotFirst {
-			return 1, 1
-		}
+	if lines.Len() > 0 {
+		first := lines.At(0)
+		last := lines.At(lines.Len() - 1)
 		return offsetToLine(source, first.Start), offsetToLine(source, last.Stop-1)
 	}
-	first := lines.At(0)
-	last := lines.At(lines.Len() - 1)
+	var first, last text.Segment
+	gotFirst := false
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		if c.Type() != ast.TypeBlock {
+			continue
+		}
+		cs, ce := lineRangeBlockSegments(c)
+		if cs.Start == 0 && ce.Stop == 0 {
+			continue
+		}
+		if !gotFirst {
+			first = cs
+			gotFirst = true
+		}
+		last = ce
+	}
+	if !gotFirst {
+		return 1, 1
+	}
 	return offsetToLine(source, first.Start), offsetToLine(source, last.Stop-1)
+}
+
+// lineRangeBlockSegments returns the first and last text segments belonging
+// to a block node, recursing into block children when the node has none of
+// its own. Inline nodes are skipped because their Lines() implementation
+// panics in goldmark.
+func lineRangeBlockSegments(n ast.Node) (text.Segment, text.Segment) {
+	if n.Type() != ast.TypeBlock {
+		return text.Segment{}, text.Segment{}
+	}
+	lines := n.Lines()
+	if lines.Len() > 0 {
+		return lines.At(0), lines.At(lines.Len() - 1)
+	}
+	var first, last text.Segment
+	gotFirst := false
+	for c := n.FirstChild(); c != nil; c = c.NextSibling() {
+		cs, ce := lineRangeBlockSegments(c)
+		if cs.Start == 0 && ce.Stop == 0 {
+			continue
+		}
+		if !gotFirst {
+			first = cs
+			gotFirst = true
+		}
+		last = ce
+	}
+	return first, last
 }
 
 // offsetToLine maps a byte offset in source to a 1-based line number.

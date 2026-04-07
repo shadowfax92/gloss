@@ -46,11 +46,15 @@ type Output struct {
 	LineCount int    `json:"line_count"`
 }
 
-func (r *Renderer) Render(source []byte) (*Output, error) {
+func (r *Renderer) Render(source []byte) (out *Output, err error) {
+	// Goldmark is robust but defensive: a malformed input or a bug in the
+	// custom block renderer shouldn't crash the daemon. Recover any panic
+	// and replace the return with a plaintext fallback render.
 	defer func() {
-		// Goldmark is robust but defensive: a malformed input shouldn't crash
-		// the daemon. Recovered panics get returned as a fallback render below.
-		_ = recover()
+		if rec := recover(); rec != nil {
+			out = fallback(source, fmt.Errorf("renderer panic: %v", rec))
+			err = nil
+		}
 	}()
 
 	var buf bytes.Buffer

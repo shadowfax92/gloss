@@ -332,4 +332,3 @@ func writeJSON(w http.ResponseWriter, v any) {
 		fmt.Fprintln(os.Stderr, "encode error:", err)
 	}
 }
-
