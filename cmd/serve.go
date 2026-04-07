@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -112,9 +113,11 @@ func runForeground(folderAbs string) error {
 	if servePort > 0 {
 		cfg.Port = servePort
 	}
+	// Wait briefly for the in-process listener to bind, then push the open
+	// and launch the browser. Errors here are intentionally swallowed —
+	// foreground mode is a debug escape hatch, and any failure (port bind,
+	// browser launch) will already be visible in the foreground log.
 	go func() {
-		// Wait briefly for the listener to bind, then push the open and open
-		// the browser. Avoids the spawn-or-reuse client path entirely.
 		client, err := waitForLocalDaemon()
 		if err != nil {
 			return
@@ -140,7 +143,7 @@ func waitForLocalDaemon() (*server.Client, error) {
 		if err == nil {
 			return c, nil
 		}
-		sleepMS(20)
+		time.Sleep(20 * time.Millisecond)
 	}
 	return nil, fmt.Errorf("daemon did not become ready")
 }

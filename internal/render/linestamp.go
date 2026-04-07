@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"fmt"
+	stdhtml "html"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -48,27 +49,26 @@ func (s *lineStamper) renderHeading(w util.BufWriter, source []byte, n ast.Node,
 }
 
 func (s *lineStamper) renderParagraph(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
+	if isInsideTightList(n) {
+		// Tight list items hide their paragraph wrapper to match GFM rendering.
+		return ast.WalkContinue, nil
+	}
 	if entering {
-		if _, ok := n.Parent().(*ast.ListItem); ok {
-			// Tight list items hide their paragraph wrapper to match GFM rendering.
-			if list, ok := n.Parent().Parent().(*ast.List); ok && !list.IsTight {
-				start, end := lineRange(source, n)
-				fmt.Fprintf(w, `<p data-line-start="%d" data-line-end="%d">`, start, end)
-				return ast.WalkContinue, nil
-			}
-			return ast.WalkContinue, nil
-		}
 		start, end := lineRange(source, n)
 		fmt.Fprintf(w, `<p data-line-start="%d" data-line-end="%d">`, start, end)
 		return ast.WalkContinue, nil
 	}
-	if _, ok := n.Parent().(*ast.ListItem); ok {
-		if list, ok := n.Parent().Parent().(*ast.List); ok && list.IsTight {
-			return ast.WalkContinue, nil
-		}
-	}
 	w.WriteString("</p>\n")
 	return ast.WalkContinue, nil
+}
+
+func isInsideTightList(n ast.Node) bool {
+	li, ok := n.Parent().(*ast.ListItem)
+	if !ok {
+		return false
+	}
+	list, ok := li.Parent().(*ast.List)
+	return ok && list.IsTight
 }
 
 func (s *lineStamper) renderBlockquote(w util.BufWriter, source []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -234,31 +234,9 @@ func writeLines(w util.BufWriter, source []byte, n ast.Node) {
 }
 
 func writeHTML(w util.BufWriter, b []byte) {
-	for _, c := range b {
-		switch c {
-		case '&':
-			w.WriteString("&amp;")
-		case '<':
-			w.WriteString("&lt;")
-		case '>':
-			w.WriteString("&gt;")
-		case '"':
-			w.WriteString("&quot;")
-		default:
-			w.WriteByte(c)
-		}
-	}
+	w.WriteString(stdhtml.EscapeString(string(b)))
 }
 
 func escapeAttr(s string) string {
-	var b bytes.Buffer
-	for _, r := range s {
-		switch r {
-		case '"', '<', '>', '&':
-			fmt.Fprintf(&b, "&#%d;", r)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
+	return stdhtml.EscapeString(s)
 }

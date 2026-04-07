@@ -138,7 +138,10 @@ func (d *Daemon) addOrGetFolder(absPath string) (*Folder, error) {
 	if f, ok := d.folders[id]; ok {
 		return f, nil
 	}
-	w, _ := watch.New(resolved, d.cfg.Ignore)
+	w, err := watch.New(resolved, d.cfg.Ignore)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "watch: %s: %v\n", resolved, err)
+	}
 	f := newFolder(resolved, w)
 	d.folders[id] = f
 	if w != nil {

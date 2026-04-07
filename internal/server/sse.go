@@ -37,6 +37,10 @@ func (h *sseHub) unsubscribe(ch chan sseEvent) {
 	close(ch)
 }
 
+// broadcast sends an event to every subscriber. Slow consumers (queue full)
+// silently drop the event — that's intentional. Live-reload events are
+// idempotent and the client polls /tree on reconnect anyway, so a missed
+// event is at worst a stale render until the next mutation.
 func (h *sseHub) broadcast(name string, data any) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

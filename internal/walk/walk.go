@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gloss/internal/mdfile"
 )
 
 const (
@@ -75,7 +77,7 @@ func collect(root string, ignore map[string]struct{}) ([]string, bool, error) {
 			return nil
 		}
 		name := d.Name()
-		if strings.HasPrefix(name, ".") && name != "." {
+		if strings.HasPrefix(name, ".") {
 			if d.IsDir() {
 				return fs.SkipDir
 			}
@@ -97,7 +99,7 @@ func collect(root string, ignore map[string]struct{}) ([]string, bool, error) {
 		if d.IsDir() {
 			return nil
 		}
-		if !isMarkdown(name) {
+		if !mdfile.Is(name) {
 			return nil
 		}
 		files = append(files, path)
@@ -125,7 +127,7 @@ func build(root string, files []string) *Node {
 		parts := strings.Split(rel, "/")
 		dirRel := ""
 		parent := rootNode
-		for i := 0; i < len(parts)-1; i++ {
+		for i := range len(parts) - 1 {
 			seg := parts[i]
 			next := dirRel
 			if next == "" {
@@ -179,9 +181,4 @@ func buildIgnoreSet(items []string) map[string]struct{} {
 		out[it] = struct{}{}
 	}
 	return out
-}
-
-func isMarkdown(name string) bool {
-	low := strings.ToLower(name)
-	return strings.HasSuffix(low, ".md") || strings.HasSuffix(low, ".markdown")
 }

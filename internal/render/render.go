@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"fmt"
+	stdhtml "html"
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
@@ -72,28 +73,9 @@ func fallback(source []byte, err error) *Output {
 	return &Output{
 		HTML: fmt.Sprintf(
 			`<div class="render-error"><strong>Render error:</strong> %s</div><pre class="raw-fallback">%s</pre>`,
-			htmlEscape(err.Error()),
-			htmlEscape(string(source)),
+			stdhtml.EscapeString(err.Error()),
+			stdhtml.EscapeString(string(source)),
 		),
 		LineCount: bytes.Count(source, []byte("\n")) + 1,
 	}
-}
-
-func htmlEscape(s string) string {
-	var b bytes.Buffer
-	for _, r := range s {
-		switch r {
-		case '&':
-			b.WriteString("&amp;")
-		case '<':
-			b.WriteString("&lt;")
-		case '>':
-			b.WriteString("&gt;")
-		case '"':
-			b.WriteString("&quot;")
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
 }

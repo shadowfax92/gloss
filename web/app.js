@@ -153,17 +153,12 @@ function renderNode(parent, node, depth, filter, list) {
 
 function highlightTreeNode(rel) {
   $$(".tree-node.active").forEach((n) => n.classList.remove("active"));
-  const node = $(`.tree-node[data-path="${cssEscape(rel)}"]`);
+  const node = $(`.tree-node[data-path="${CSS.escape(rel)}"]`);
   if (node) {
     node.classList.add("active");
     state.cursor = state.cursorList.indexOf(node);
     applyCursor();
   }
-}
-
-function cssEscape(s) {
-  if (window.CSS && CSS.escape) return CSS.escape(s);
-  return s.replace(/"/g, '\\"');
 }
 
 function applyCursor() {

@@ -62,7 +62,7 @@ func (d *Daemon) indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 type openRequest struct {
@@ -92,12 +92,12 @@ func (d *Daemon) openHandler(w http.ResponseWriter, r *http.Request) {
 
 	abs, err := filepath.Abs(req.Folder)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "invalid folder", http.StatusBadRequest)
 		return
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "folder not found", http.StatusBadRequest)
 		return
 	}
 	if !info.IsDir() {
@@ -193,14 +193,14 @@ func (d *Daemon) serveFile(w http.ResponseWriter, r *http.Request, f *Folder) {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
-	abs := filepath.Join(f.AbsPath, filepath.FromSlash(rel))
-	if !strings.HasPrefix(abs, f.AbsPath) {
+	abs, ok := safeJoin(f.AbsPath, rel)
+	if !ok {
 		http.Error(w, "path escapes folder", http.StatusBadRequest)
 		return
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
 	home, _ := os.UserHomeDir()
@@ -237,12 +237,27 @@ func (d *Daemon) serveAsset(w http.ResponseWriter, r *http.Request, f *Folder) {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
-	abs := filepath.Join(f.AbsPath, filepath.FromSlash(rel))
-	if !strings.HasPrefix(abs, f.AbsPath) {
+	abs, ok := safeJoin(f.AbsPath, rel)
+	if !ok {
 		http.Error(w, "path escapes folder", http.StatusBadRequest)
 		return
 	}
 	http.ServeFile(w, r, abs)
+}
+
+// safeJoin resolves a slash-separated relative path against an absolute base
+// directory and returns the cleaned absolute path only if it stays inside the
+// base. Catches `..` traversal and the "/a/b" vs "/a/bc" sibling-prefix bug
+// that bare strings.HasPrefix would let slip through.
+func safeJoin(base, rel string) (string, bool) {
+	abs := filepath.Clean(filepath.Join(base, filepath.FromSlash(rel)))
+	if abs == base {
+		return abs, true
+	}
+	if !strings.HasPrefix(abs, base+string(os.PathSeparator)) {
+		return "", false
+	}
+	return abs, true
 }
 
 func (d *Daemon) recentHandler(w http.ResponseWriter, r *http.Request) {

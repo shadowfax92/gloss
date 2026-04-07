@@ -2,8 +2,10 @@ package highlights
 
 import (
 	"bufio"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -168,11 +170,14 @@ func (s *Store) rewrite(items []Highlight) error {
 	return os.Rename(tmp, s.path)
 }
 
-func (s *Store) Export(w *bufio.Writer) error {
+func (s *Store) Export(w io.Writer) error {
 	all, err := s.List()
 	if err != nil {
 		return err
 	}
+	bw := bufio.NewWriter(w)
+	defer bw.Flush()
+
 	groups := map[string][]Highlight{}
 	for _, h := range all {
 		groups[h.AbsPath] = append(groups[h.AbsPath], h)
@@ -183,19 +188,19 @@ func (s *Store) Export(w *bufio.Writer) error {
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		fmt.Fprintf(w, "## %s\n\n", p)
+		fmt.Fprintf(bw, "## %s\n\n", p)
 		for _, h := range groups[p] {
-			fmt.Fprintf(w, "**%s:%d-%d** · %s\n\n", p, h.LineStart, h.LineEnd, h.CreatedAt.Format(time.RFC3339))
-			for _, line := range strings.Split(h.Text, "\n") {
-				fmt.Fprintf(w, "> %s\n", line)
+			fmt.Fprintf(bw, "**%s:%d-%d** · %s\n\n", p, h.LineStart, h.LineEnd, h.CreatedAt.Format(time.RFC3339))
+			for line := range strings.SplitSeq(h.Text, "\n") {
+				fmt.Fprintf(bw, "> %s\n", line)
 			}
 			if h.Note != "" {
-				fmt.Fprintf(w, "\n_note:_ %s\n", h.Note)
+				fmt.Fprintf(bw, "\n_note:_ %s\n", h.Note)
 			}
-			fmt.Fprintln(w)
+			fmt.Fprintln(bw)
 		}
 	}
-	return w.Flush()
+	return nil
 }
 
 var (
@@ -207,7 +212,7 @@ func newULID() string {
 	ulidMu.Lock()
 	defer ulidMu.Unlock()
 	if ulidEntropy == nil {
-		ulidEntropy = ulid.Monotonic(newRand(), 0)
+		ulidEntropy = ulid.Monotonic(rand.Reader, 0)
 	}
 	return ulid.MustNew(ulid.Timestamp(time.Now()), ulidEntropy).String()
 }

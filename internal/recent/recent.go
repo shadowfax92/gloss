@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"gloss/internal/mdfile"
 	"gloss/internal/paths"
 )
 
@@ -41,7 +42,7 @@ func (r *Reader) ListMarkdown(days, max int) ([]Entry, error) {
 	cutoff := time.Now().AddDate(0, 0, -days)
 	out := make([]Entry, 0, len(all))
 	for _, e := range all {
-		if !isMarkdown(e.Path) {
+		if !mdfile.Is(e.Path) {
 			continue
 		}
 		if e.Time.Before(cutoff) {
@@ -98,9 +99,4 @@ func (r *Reader) allCached() ([]Entry, error) {
 	r.cached = out
 	r.cacheAt = time.Now()
 	return out, nil
-}
-
-func isMarkdown(p string) bool {
-	low := strings.ToLower(p)
-	return strings.HasSuffix(low, ".md") || strings.HasSuffix(low, ".markdown")
 }

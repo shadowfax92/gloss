@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -88,8 +87,7 @@ var highlightsExportCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		w := bufio.NewWriter(os.Stdout)
-		return store.Export(w)
+		return store.Export(os.Stdout)
 	},
 }
 

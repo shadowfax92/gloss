@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	"gloss/internal/mdfile"
 )
 
 type Event struct {
@@ -192,8 +194,7 @@ func snapshot(root string, ignore map[string]struct{}) map[string]int64 {
 }
 
 func relevant(p string) bool {
-	low := strings.ToLower(p)
-	return strings.HasSuffix(low, ".md") || strings.HasSuffix(low, ".markdown")
+	return mdfile.Is(p)
 }
 
 func readDir(path string) (bool, error) {
