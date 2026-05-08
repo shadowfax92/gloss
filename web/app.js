@@ -2,7 +2,9 @@ const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 const initialFolder = params.get("folder") || "";
 const initialFile = params.get("file") || "";
+const THEME_STORAGE_KEY = "gloss-theme";
 const RECENT_SECTION_STORAGE_KEY = "gloss-recent-section-open";
+const OTHER_FILES_SECTION_STORAGE_KEY = "gloss-other-files-section-open";
 
 const state = {
   folderID: initialFolder,
@@ -40,28 +42,37 @@ function toast(msg) {
 
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
-  localStorage.setItem("gloss-theme", t);
+  localStorage.setItem(THEME_STORAGE_KEY, t);
 }
 
 function initTheme() {
-  const stored = localStorage.getItem("gloss-theme");
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
   if (stored) {
     setTheme(stored);
     return;
   }
-  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  setTheme(dark ? "dark" : "light");
+  setTheme("light");
 }
 
-function initRecentSection() {
-  const section = $("#recent-section");
+function initPersistedSection(selector, storageKey, defaultOpen) {
+  const section = $(selector);
   if (!section) return;
-  const stored = localStorage.getItem(RECENT_SECTION_STORAGE_KEY);
-  if (stored === "true") section.open = true;
-  if (stored === "false") section.open = false;
+  const stored = localStorage.getItem(storageKey);
+  if (stored === "true") {
+    section.open = true;
+  } else if (stored === "false") {
+    section.open = false;
+  } else {
+    section.open = defaultOpen;
+  }
   section.addEventListener("toggle", () => {
-    localStorage.setItem(RECENT_SECTION_STORAGE_KEY, section.open ? "true" : "false");
+    localStorage.setItem(storageKey, section.open ? "true" : "false");
   });
+}
+
+function initSections() {
+  initPersistedSection("#other-files-section", OTHER_FILES_SECTION_STORAGE_KEY, false);
+  initPersistedSection("#recent-section", RECENT_SECTION_STORAGE_KEY, false);
 }
 
 async function loadOpenFolders() {
@@ -449,7 +460,7 @@ function bindSSE() {
 
 async function bootstrap() {
   initTheme();
-  initRecentSection();
+  initSections();
   bindButtons();
   bindKeys();
   bindSelectionBar();
