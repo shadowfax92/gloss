@@ -2,6 +2,7 @@ const params = new URLSearchParams(location.search);
 const TOKEN = params.get("t") || "";
 const initialFolder = params.get("folder") || "";
 const initialFile = params.get("file") || "";
+const RECENT_SECTION_STORAGE_KEY = "gloss-recent-section-open";
 
 const state = {
   folderID: initialFolder,
@@ -50,6 +51,17 @@ function initTheme() {
   }
   const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   setTheme(dark ? "dark" : "light");
+}
+
+function initRecentSection() {
+  const section = $("#recent-section");
+  if (!section) return;
+  const stored = localStorage.getItem(RECENT_SECTION_STORAGE_KEY);
+  if (stored === "true") section.open = true;
+  if (stored === "false") section.open = false;
+  section.addEventListener("toggle", () => {
+    localStorage.setItem(RECENT_SECTION_STORAGE_KEY, section.open ? "true" : "false");
+  });
 }
 
 async function loadOpenFolders() {
@@ -437,6 +449,7 @@ function bindSSE() {
 
 async function bootstrap() {
   initTheme();
+  initRecentSection();
   bindButtons();
   bindKeys();
   bindSelectionBar();
